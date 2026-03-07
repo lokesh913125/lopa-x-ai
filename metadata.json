@@ -1,0 +1,9 @@
+{
+  "name": "Lopa X AI",
+  "description": "A comprehensive AI ecosystem featuring advanced chat, 50+ specialized micro-tools, image generation, and personalized AI personas.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

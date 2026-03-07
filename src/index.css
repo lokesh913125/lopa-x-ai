@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #8B5CF6;
+  --color-secondary: #000000;
+  --color-accent: #EC4899;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-white antialiased;
+  }
+}
+
+@utility glass {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+}
+
+@utility glass-card {
+  @apply glass rounded-2xl p-6 transition-all duration-300 hover:bg-white/10;
+}
+
+@utility btn-primary {
+  @apply bg-primary hover:bg-primary/90 text-white font-semibold py-2 px-4 rounded-xl transition-all active:scale-95;
+}
+
+@utility input-glass {
+  @apply bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all;
+}
+
+@utility prose {
+  & p {
+    @apply mb-4 last:mb-0;
+  }
+  & ul, & ol {
+    @apply mb-4 ml-6 list-outside;
+  }
+  & li {
+    @apply mb-2 last:mb-0;
+  }
+  & h1, & h2, & h3, & h4, & h5, & h6 {
+    @apply mb-4 mt-8 first:mt-0 font-bold;
+  }
+  & h1 { @apply text-3xl; }
+  & h2 { @apply text-2xl; }
+  & h3 { @apply text-xl; }
+  & blockquote {
+    @apply border-l-4 border-white/20 pl-4 italic mb-4;
+  }
+  & pre {
+    @apply mb-4;
+  }
+}
+
+@utility prose-invert {
+  @apply text-gray-200;
+  & h1, & h2, & h3, & h4, & h5, & h6 {
+    @apply text-white;
+  }
+  & blockquote {
+    @apply border-white/10 text-gray-400;
+  }
+  & code {
+    @apply text-primary;
+  }
+}
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
