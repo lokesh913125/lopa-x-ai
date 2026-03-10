@@ -47,18 +47,27 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
     password: name
   });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
-  onLogin(data.user);
+  if (data.user) {
+    onLogin(data.user);
+  }
+
 } else {
   const { data, error } = await supabase.auth.signUp({
     email: email,
     password: name
   });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
-  onLogin(data.user);
+  if (data.user) {
+    onLogin(data.user);
+  }
 }
         method: "POST",
         headers: { "Content-Type": "application/json" },
