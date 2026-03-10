@@ -1,7 +1,7 @@
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { 
 import { supabase } from "./services/supabase";
+import { 
   LayoutDashboard, 
   MessageSquare, 
   Wand2, 
