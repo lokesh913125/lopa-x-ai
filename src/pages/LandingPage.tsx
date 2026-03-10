@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { 
+import {
+import { supabase } from "../services/supabase";
   Zap, 
   Shield, 
   Sparkles, 
@@ -40,7 +41,25 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
     e.preventDefault();
     const toastId = toast.loading(isLogin ? "Logging in..." : "Creating account...");
     try {
-      const res = await fetch("/api/auth/mock", {
+      if (isLogin) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: name
+  });
+
+  if (error) throw error;
+
+  onLogin(data.user);
+} else {
+  const { data, error } = await supabase.auth.signUp({
+    email: email,
+    password: name
+  });
+
+  if (error) throw error;
+
+  onLogin(data.user);
+}
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name: name || email.split("@")[0] })
