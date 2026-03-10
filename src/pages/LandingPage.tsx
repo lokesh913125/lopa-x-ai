@@ -68,11 +68,6 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
   if (data.user) {
     onLogin(data.user);
   }
-}
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name: name || email.split("@")[0] })
-      });
       const user = await res.json();
       localStorage.setItem("lopa_user", JSON.stringify(user));
       toast.success(isLogin ? "Welcome back!" : "Account created successfully!", { id: toastId });
