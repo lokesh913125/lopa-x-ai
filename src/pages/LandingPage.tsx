@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import {
 import { supabase } from "../services/supabase";
-  Zap, 
-  Shield, 
-  Sparkles, 
-  Rocket, 
-  ArrowRight, 
-  CheckCircle2, 
-  Mail, 
-  MapPin, 
-  Globe, 
-  Info, 
+import {
+  Zap,
+  Shield,
+  Sparkles,
+  Rocket,
+  ArrowRight,
+  CheckCircle2,
+  Mail,
+  MapPin,
+  Globe,
+  Info,
   Phone,
   MessageSquare,
   Wand2,
