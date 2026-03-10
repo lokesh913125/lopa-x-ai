@@ -60,9 +60,10 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
       if (data.user) onLogin(data.user);
     }
 
-  } catch (error) {
-    alert("Authentication failed");
-  }
+  catch (error: any) {
+  alert(error.message);
+  console.log(error);
+}
 };
 
   return (
