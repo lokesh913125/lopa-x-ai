@@ -41,29 +41,37 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
   e.preventDefault();
 
   try {
+
     if (isLogin) {
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
-        password: "12345678"
+        password: email
       });
 
       if (error) throw error;
+
       if (data.user) onLogin(data.user);
 
     } else {
+
       const { data, error } = await supabase.auth.signUp({
         email: email,
-        password: "12345678"
+        password: email
       });
 
       if (error) throw error;
+
       if (data.user) onLogin(data.user);
+
     }
 
-  catch (error: any) {
-  alert(error.message);
-  console.log(error);
-}
+  } catch (error: any) {
+
+    alert(error.message);
+    console.log(error);
+
+  }
 };
 
   return (
