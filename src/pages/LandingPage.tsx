@@ -44,7 +44,7 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
     if (isLogin) {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
-        password: email
+        password: "12345678"
       });
 
       if (error) throw error;
@@ -53,7 +53,7 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
     } else {
       const { data, error } = await supabase.auth.signUp({
         email: email,
-        password: email
+        password: "12345678"
       });
 
       if (error) throw error;
