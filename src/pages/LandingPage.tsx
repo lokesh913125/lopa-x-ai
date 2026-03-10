@@ -38,44 +38,32 @@ export default function LandingPage({ onLogin }: { onLogin: (user: any) => void 
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const toastId = toast.loading(isLogin ? "Logging in..." : "Creating account...");
-    try {
-      if (isLogin) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email,
-    password: name
-  });
+  e.preventDefault();
 
-  if (error) {
-    throw error;
-  }
+  try {
+    if (isLogin) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: name
+      });
 
-  if (data.user) {
-    onLogin(data.user);
-  }
+      if (error) throw error;
+      if (data.user) onLogin(data.user);
 
-} else {
-  const { data, error } = await supabase.auth.signUp({
-    email: email,
-    password: name
-  });
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: name
+      });
 
-  if (error) {
-    throw error;
-  }
-
-  if (data.user) {
-    onLogin(data.user);
-  }
-      const user = await res.json();
-      localStorage.setItem("lopa_user", JSON.stringify(user));
-      toast.success(isLogin ? "Welcome back!" : "Account created successfully!", { id: toastId });
-      onLogin(user);
-    } catch (error) {
-      toast.error("Authentication failed. Please try again.", { id: toastId });
+      if (error) throw error;
+      if (data.user) onLogin(data.user);
     }
-  };
+
+  } catch (error) {
+    alert("Authentication failed");
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#020202] text-white selection:bg-primary/30 selection:text-white overflow-x-hidden">
