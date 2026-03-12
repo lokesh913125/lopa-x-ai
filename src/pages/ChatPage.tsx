@@ -1,259 +1,169 @@
-import { useState } from "react";
-
-const MODELS = [
-  { id: "gemini", name: "Gemini" },
-  { id: "groq", name: "Groq" },
-  { id: "openrouter", name: "OpenRouter" },
-  { id: "together", name: "Together" },
-  { id: "sambanova", name: "SambaNova" },
-  { id: "deepseek", name: "DeepSeek" },
-  { id: "replicate", name: "Replicate" },
-  { id: "openai", name: "OpenAI GPT" }
-];
+import { useState, useRef, useEffect } from "react";
 
 export default function ChatPage() {
 
   const [messages, setMessages] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
-  const [model, setModel] = useState("gemini");
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function askAI() {
+  const messagesEndRef = useRef<any>(null);
 
-    if (!message.trim()) return;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-    const userMessage = { role: "user", content: message };
-    setMessages((m) => [...m, userMessage]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
-    const prompt = message;
-    setMessage("");
+  async function sendMessage() {
+
+    if (!input.trim()) return;
+
+    const userMessage = { role: "user", content: input };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
     setLoading(true);
 
     try {
 
-      let reply = "";
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: input
+        })
+      });
 
-      // GEMINI
-      if (model === "gemini") {
+      const data = await res.json();
 
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
-          }
-        );
+      const aiMessage = {
+        role: "assistant",
+        content: data.reply || "No response"
+      };
 
-        const data = await res.json();
-        reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
-      }
+      setMessages((prev) => [...prev, aiMessage]);
 
-      // GROQ
-      if (model === "groq") {
+    } catch (error) {
 
-        const res = await fetch(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "llama3-70b-8192",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // OPENROUTER
-      if (model === "openrouter") {
-
-        const res = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "deepseek/deepseek-chat",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // TOGETHER
-      if (model === "together") {
-
-        const res = await fetch(
-          "https://api.together.xyz/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_TOGETHER_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "meta-llama/Llama-3-70b-chat-hf",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // SAMBANOVA
-      if (model === "sambanova") {
-
-        const res = await fetch(
-          "https://api.sambanova.ai/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SAMBANOVA_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "Meta-Llama-3-70B-Instruct",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // DEEPSEEK
-      if (model === "deepseek") {
-
-        const res = await fetch(
-          "https://api.deepseek.com/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // OPENAI
-      if (model === "openai") {
-
-        const res = await fetch(
-          "https://api.openai.com/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [{ role: "user", content: prompt }]
-            })
-          }
-        );
-
-        const data = await res.json();
-        reply = data.choices?.[0]?.message?.content || "No response";
-      }
-
-      // REPLICATE (placeholder)
-      if (model === "replicate") {
-        reply = "Replicate model integration pending.";
-      }
-
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
-
-    } catch (err) {
-
-      setMessages((m) => [...m, { role: "assistant", content: "AI Error occurred." }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "AI server error." }
+      ]);
 
     }
 
     setLoading(false);
   }
 
+  function handleKeyDown(e: any) {
+    if (e.key === "Enter") {
+      sendMessage();
+    }
+  }
+
   return (
-    <div style={{ maxWidth: 900, margin: "auto", padding: 20 }}>
 
-      <h1>Lopax AI Chat</h1>
+    <div style={{
+      maxWidth: 900,
+      margin: "auto",
+      height: "80vh",
+      display: "flex",
+      flexDirection: "column"
+    }}>
 
-      <div style={{ marginBottom: 10 }}>
-        {MODELS.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => setModel(m.id)}
-            style={{
-              marginRight: 6,
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "none",
-              background: model === m.id ? "#6366f1" : "#e5e7eb",
-              color: model === m.id ? "white" : "black",
-              cursor: "pointer"
-            }}
-          >
-            {m.name}
-          </button>
-        ))}
-      </div>
+      <h2 style={{ marginBottom: 10 }}>Lopax AI Chat</h2>
+
+      {/* CHAT AREA */}
 
       <div style={{
-        border: "1px solid #ddd",
-        height: 400,
-        overflow: "auto",
-        padding: 10,
-        marginBottom: 10
+        flex: 1,
+        overflowY: "auto",
+        border: "1px solid #333",
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 10,
+        background: "#0f0f0f"
       }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 8 }}>
-            <b>{m.role === "user" ? "You" : "AI"}:</b> {m.content}
+
+        {messages.map((msg, i) => (
+
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent:
+                msg.role === "user" ? "flex-end" : "flex-start",
+              marginBottom: 10
+            }}
+          >
+
+            <div
+              style={{
+                background:
+                  msg.role === "user" ? "#6366f1" : "#1f2937",
+                padding: "10px 14px",
+                borderRadius: 8,
+                maxWidth: "70%",
+                color: "white"
+              }}
+            >
+
+              {msg.content}
+
+            </div>
+
           </div>
+
         ))}
+
         {loading && <p>AI is thinking...</p>}
+
+        <div ref={messagesEndRef} />
+
       </div>
 
-      <div style={{ display: "flex" }}>
+      {/* INPUT */}
+
+      <div style={{ display: "flex", gap: 10 }}>
+
         <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Ask anything..."
-          style={{ flex: 1, padding: 10 }}
+          style={{
+            flex: 1,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #333",
+            background: "#111",
+            color: "white"
+          }}
         />
+
         <button
-          onClick={askAI}
-          style={{ padding: "10px 20px" }}
+          onClick={sendMessage}
+          style={{
+            padding: "12px 20px",
+            background: "#6366f1",
+            border: "none",
+            borderRadius: 8,
+            color: "white",
+            cursor: "pointer"
+          }}
         >
+
           Send
+
         </button>
+
       </div>
 
     </div>
+
   );
 }
