@@ -92,15 +92,30 @@ export default function App() {
   }
 
   if (!user) {
-    return (
-      <>
-        <Toaster position="top-right" theme="dark" richColors />
-        <Routes>
-          <Route path="/" element={<LandingPage onLogin={(u: any) => setUser(u)} />} />
-          <Route path="*" element={<LandingPage onLogin={(u: any) => setUser(u)} />} />
-        </Routes>
-      </>
-    );
+    // ── TESTING MODE: Login bypass ──
+    // Jab testing khatam ho toh ye 4 lines delete karna
+    const testUser = {
+      name: "Lokesh",
+      email: "lokesh@test.com",
+      credits: 9999,
+      referralCode: "LOPA-TEST1",
+      referrals: 0,
+      referralCredits: 0,
+    };
+    localStorage.setItem("lopa_user", JSON.stringify(testUser));
+    setUser(testUser);
+    return null;
+
+    // Normal login (ye tab use hoga jab testing mode band karo)
+    // return (
+    //   <>
+    //     <Toaster position="top-right" theme="dark" richColors />
+    //     <Routes>
+    //       <Route path="/" element={<LandingPage onLogin={(u: any) => setUser(u)} />} />
+    //       <Route path="*" element={<LandingPage onLogin={(u: any) => setUser(u)} />} />
+    //     </Routes>
+    //   </>
+    // );
   }
 
   return (
