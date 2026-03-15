@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { generateImage } from "../services/gemini";
+import { generateImage, analyzeImageWithAI } from "../services/gemini";
 
 const RATIOS = [
   { label: "Square 1:1", value: "1:1" },
@@ -25,36 +25,6 @@ const ANALYZE_MODES = [
   { label: "🎨 Art Style", prompt: "What art style, technique, or photography style is used in this image? Explain in detail." },
   { label: "💡 Story", prompt: "Write a short creative story inspired by this image in 100 words." },
 ];
-
-// ── Gemini Vision — Image to Text ──
-async function analyzeImage(base64: string, mimeType: string, prompt: string): Promise<string> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY_1;
-  if (!key) throw new Error("VITE_GEMINI_API_KEY_1 missing!");
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mimeType, data: base64 } },
-            { text: prompt },
-          ],
-        }],
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Koi response nahi mila.";
-}
 
 export default function ImageLab() {
   const [tab, setTab] = useState<"generate" | "analyze">("generate");
@@ -113,7 +83,7 @@ export default function ImageLab() {
     }
   };
 
-  // ── Upload Image ──
+  // ── Upload ──
   const handleFileUpload = (file: File) => {
     if (!file.type.startsWith("image/")) return setAnalyzeError("Sirf image files allowed hain!");
     if (file.size > 10 * 1024 * 1024) return setAnalyzeError("Image 10MB se chhoti honi chahiye!");
@@ -135,20 +105,15 @@ export default function ImageLab() {
   const analyze = async () => {
     if (!uploadedFile) return setAnalyzeError("Pehle image upload karo!");
     setAnalyzing(true); setAnalyzeError(null); setAnalysisResult(null);
-
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(uploadedFile);
       });
-
       const finalPrompt = customPrompt.trim() || analyzeMode.prompt;
-      const result = await analyzeImage(base64, uploadedFile.type, finalPrompt);
+      const result = await analyzeImageWithAI(base64, uploadedFile.type, finalPrompt);
       setAnalysisResult(result);
     } catch (e: any) {
       setAnalyzeError(e?.message || "Analysis fail ho gaya!");
@@ -172,9 +137,7 @@ export default function ImageLab() {
           <button
             onClick={() => setTab("generate")}
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "generate"
-                ? "bg-purple-600 text-white"
-                : "text-gray-400 hover:text-white"
+              tab === "generate" ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white"
             }`}
           >
             ✨ Generate Image
@@ -182,9 +145,7 @@ export default function ImageLab() {
           <button
             onClick={() => setTab("analyze")}
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "analyze"
-                ? "bg-purple-600 text-white"
-                : "text-gray-400 hover:text-white"
+              tab === "analyze" ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white"
             }`}
           >
             🔍 Image to Text
@@ -282,8 +243,6 @@ export default function ImageLab() {
         {/* ── TAB 2: Image to Text ── */}
         {tab === "analyze" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            {/* Left — Upload + Options */}
             <div className="space-y-4">
 
               {/* Upload Area */}
@@ -291,7 +250,7 @@ export default function ImageLab() {
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-600 hover:border-purple-500 rounded-xl p-6 text-center cursor-pointer transition-colors relative overflow-hidden"
+                className="border-2 border-dashed border-gray-600 hover:border-purple-500 rounded-xl p-6 text-center cursor-pointer transition-colors"
               >
                 {uploadedPreview ? (
                   <>
@@ -336,9 +295,7 @@ export default function ImageLab() {
 
               {/* Custom Prompt */}
               <div>
-                <label className="text-sm text-gray-300 mb-1 block">
-                  Ya apna sawaal likho (optional)
-                </label>
+                <label className="text-sm text-gray-300 mb-1 block">Ya apna sawaal likho (optional)</label>
                 <input
                   type="text"
                   className="w-full bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500"
@@ -368,17 +325,13 @@ export default function ImageLab() {
               )}
             </div>
 
-            {/* Right — Result */}
+            {/* Result */}
             <div className="bg-gray-800 rounded-xl border border-gray-700 min-h-64 flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-                <span className="text-sm font-medium text-gray-300">
-                  {analyzeMode.label} Result
-                </span>
+                <span className="text-sm font-medium text-gray-300">{analyzeMode.label} Result</span>
                 {analysisResult && (
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(analysisResult);
-                    }}
+                    onClick={() => navigator.clipboard.writeText(analysisResult)}
                     className="text-xs text-gray-400 hover:text-white border border-gray-600 hover:border-gray-400 px-2 py-1 rounded-lg transition-colors"
                   >
                     📋 Copy
@@ -391,22 +344,19 @@ export default function ImageLab() {
                   <div className="flex flex-col items-center justify-center h-full">
                     <div className="w-10 h-10 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-3"/>
                     <p className="text-gray-400 text-sm">Image analyze ho rahi hai...</p>
-                    <p className="text-gray-500 text-xs mt-1">5-10 seconds</p>
+                    <p className="text-gray-500 text-xs mt-1">Gemini → OpenRouter → Together → SambaNova</p>
                   </div>
                 ) : analysisResult ? (
-                  <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">
-                    {analysisResult}
-                  </p>
+                  <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{analysisResult}</p>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-500">
                     <div className="text-4xl mb-2">🔍</div>
                     <p className="text-sm">Image upload karo aur analyze karo</p>
-                    <p className="text-xs mt-1 text-gray-600">Gemini Vision use karega</p>
+                    <p className="text-xs mt-1 text-gray-600">4 providers try karega automatically</p>
                   </div>
                 )}
               </div>
             </div>
-
           </div>
         )}
 
