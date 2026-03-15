@@ -35,7 +35,7 @@ function getClient() {
 export async function generateChatResponse(
   messages: { role: string; content: string }[],
   systemInstruction?: string,
-  modelName: string = "gemini-1.5-flash"
+  modelName: string = "gemini-2.0-flash"
 ): Promise<string> {
   const ai = getClient();
   const contents = messages.map((m) => ({
