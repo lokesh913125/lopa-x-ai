@@ -23,6 +23,7 @@ export default function ImageLab() {
   const [style, setStyle] = useState("");
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const generate = async () => {
@@ -36,6 +37,28 @@ export default function ImageLab() {
       setError(e?.message || "Image generate nahi hui");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!imgUrl) return;
+    setDownloading(true);
+    try {
+      const response = await fetch(imgUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lopax-image-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // CORS issue hone pe new tab mein open karo
+      window.open(imgUrl, "_blank");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -83,10 +106,19 @@ export default function ImageLab() {
 
             <button onClick={generate} disabled={loading || !prompt.trim()}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 disabled:opacity-40 py-3 rounded-xl font-semibold transition-opacity">
-              {loading ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Generating...</span> : "✨ Generate Image"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                  Generating...
+                </span>
+              ) : "✨ Generate Image"}
             </button>
 
-            {error && <p className="text-red-400 text-sm bg-red-900/30 border border-red-700 px-3 py-2 rounded-lg">{error}</p>}
+            {error && (
+              <p className="text-red-400 text-sm bg-red-900/30 border border-red-700 px-3 py-2 rounded-lg">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="bg-gray-800 rounded-xl border border-gray-700 min-h-64 flex items-center justify-center overflow-hidden relative">
@@ -98,11 +130,18 @@ export default function ImageLab() {
               </div>
             ) : imgUrl ? (
               <>
-                <img src={imgUrl} alt="Generated" className="w-full h-full object-contain rounded-xl"/>
-                <a href={imgUrl} download={`lopax-${Date.now()}.png`} target="_blank" rel="noreferrer"
-                  className="absolute bottom-3 right-3 bg-black/70 hover:bg-black text-white px-3 py-1.5 rounded-lg text-xs">
-                  ⬇️ Download
-                </a>
+                <img
+                  src={imgUrl}
+                  alt="Generated"
+                  className="w-full h-full object-contain rounded-xl"
+                />
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="absolute bottom-3 right-3 bg-black/70 hover:bg-black disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs transition-colors"
+                >
+                  {downloading ? "⏳ Saving..." : "⬇️ Download"}
+                </button>
               </>
             ) : (
               <div className="text-center text-gray-500">
