@@ -1,109 +1,194 @@
-import { GoogleGenAI } from "@google/genai";
+// ============================================================
+// 🔑 MULTI-PROVIDER AI FALLBACK SYSTEM
+// Gemini → Groq → OpenRouter → Together → DeepSeek → SambaNova
+// ============================================================
+
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY_1;
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const TOGETHER_KEY = import.meta.env.VITE_TOGETHER_API_KEY;
+const DEEPSEEK_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
+const SAMBANOVA_KEY = import.meta.env.VITE_SAMBANOVA_API_KEY;
 
 // ============================================================
-// 🔑 API KEY ROTATION SYSTEM
+// 🤖 PROVIDER FUNCTIONS
 // ============================================================
-const API_KEYS = [
-  import.meta.env.VITE_GEMINI_API_KEY_1,
-  import.meta.env.VITE_GEMINI_API_KEY_2,
-  import.meta.env.VITE_GEMINI_API_KEY_3,
-  import.meta.env.VITE_GEMINI_API_KEY_4,
-  import.meta.env.VITE_GEMINI_API_KEY_5,
-  import.meta.env.VITE_GEMINI_API_KEY_6,
-  import.meta.env.VITE_GEMINI_API_KEY_7,
-  import.meta.env.VITE_GEMINI_API_KEY_8,
-].filter(Boolean) as string[];
 
-let keyIndex = 0;
-
-function getKey(): string {
-  if (API_KEYS.length === 0) {
-    throw new Error("❌ VITE_GEMINI_API_KEY_1 Vercel env mein add karo!");
-  }
-  const key = API_KEYS[keyIndex % API_KEYS.length];
-  keyIndex = (keyIndex + 1) % API_KEYS.length;
-  return key;
+async function tryGemini(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!GEMINI_KEY) throw new Error("No Gemini key");
+  const contents = messages.map(m => ({
+    role: m.role === "user" ? "user" : "model",
+    parts: [{ text: m.content }]
+  }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        ...(systemInstruction && { system_instruction: { parts: [{ text: systemInstruction }] } })
+      })
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini empty response");
+  return text;
 }
 
-function getClient() {
-  return new GoogleGenAI({ apiKey: getKey() });
+async function tryGroq(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!GROQ_KEY) throw new Error("No Groq key");
+  const msgs = [
+    ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    ...messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }))
+  ];
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: msgs, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`Groq error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Groq empty response");
+  return text;
+}
+
+async function tryOpenRouter(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!OPENROUTER_KEY) throw new Error("No OpenRouter key");
+  const msgs = [
+    ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    ...messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }))
+  ];
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "HTTP-Referer": "https://lopa-x-ai.vercel.app",
+      "X-Title": "Lopa X AI"
+    },
+    body: JSON.stringify({ model: "meta-llama/llama-3.3-70b-instruct:free", messages: msgs, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`OpenRouter error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenRouter empty response");
+  return text;
+}
+
+async function tryTogether(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!TOGETHER_KEY) throw new Error("No Together key");
+  const msgs = [
+    ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    ...messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }))
+  ];
+  const res = await fetch("https://api.together.xyz/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${TOGETHER_KEY}` },
+    body: JSON.stringify({ model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", messages: msgs, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`Together error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Together empty response");
+  return text;
+}
+
+async function tryDeepSeek(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!DEEPSEEK_KEY) throw new Error("No DeepSeek key");
+  const msgs = [
+    ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    ...messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }))
+  ];
+  const res = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${DEEPSEEK_KEY}` },
+    body: JSON.stringify({ model: "deepseek-chat", messages: msgs, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`DeepSeek error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("DeepSeek empty response");
+  return text;
+}
+
+async function trySambaNova(messages: { role: string; content: string }[], systemInstruction?: string): Promise<string> {
+  if (!SAMBANOVA_KEY) throw new Error("No SambaNova key");
+  const msgs = [
+    ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
+    ...messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }))
+  ];
+  const res = await fetch("https://api.sambanova.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SAMBANOVA_KEY}` },
+    body: JSON.stringify({ model: "Meta-Llama-3.3-70B-Instruct", messages: msgs, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`SambaNova error: ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error("SambaNova empty response");
+  return text;
 }
 
 // ============================================================
-// 💬 CHAT - Normal Response
+// 🔄 MAIN FALLBACK CHAIN
 // ============================================================
 export async function generateChatResponse(
   messages: { role: string; content: string }[],
   systemInstruction?: string,
-  modelName: string = "gemini-2.0-flash"
+  _modelName?: string
 ): Promise<string> {
-  const ai = getClient();
-  const contents = messages.map((m) => ({
-    role: m.role === "user" ? "user" : "model",
-    parts: [{ text: m.content }],
-  }));
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents,
-    config: systemInstruction ? { systemInstruction } : undefined,
-  });
-  return response.text ?? "";
+  const providers = [
+    { name: "Gemini", fn: () => tryGemini(messages, systemInstruction) },
+    { name: "Groq", fn: () => tryGroq(messages, systemInstruction) },
+    { name: "OpenRouter", fn: () => tryOpenRouter(messages, systemInstruction) },
+    { name: "Together", fn: () => tryTogether(messages, systemInstruction) },
+    { name: "DeepSeek", fn: () => tryDeepSeek(messages, systemInstruction) },
+    { name: "SambaNova", fn: () => trySambaNova(messages, systemInstruction) },
+  ];
+
+  for (const provider of providers) {
+    try {
+      const result = await provider.fn();
+      console.log(`✅ ${provider.name} responded`);
+      return result;
+    } catch (e) {
+      console.warn(`⚠️ ${provider.name} failed:`, e);
+    }
+  }
+  throw new Error("❌ Sab providers fail ho gaye! Thodi der baad try karo.");
 }
 
 // ============================================================
-// 💬 CHAT - Streaming Response
+// 💬 STREAMING (Groq se fast streaming)
 // ============================================================
 export async function* generateChatResponseStream(
   messages: { role: string; content: string }[],
   systemInstruction?: string,
-  modelName: string = "gemini-1.5-flash"
+  _modelName?: string
 ): AsyncGenerator<string> {
-  const ai = getClient();
-  const contents = messages.map((m) => ({
-    role: m.role === "user" ? "user" : "model",
-    parts: [{ text: m.content }],
-  }));
-  const stream = await ai.models.generateContentStream({
-    model: modelName,
-    contents,
-    config: systemInstruction ? { systemInstruction } : undefined,
-  });
-  for await (const chunk of stream) {
-    if (chunk.text) yield chunk.text;
+  // Pehle normal response lo, phir word-by-word stream karo
+  const fullResponse = await generateChatResponse(messages, systemInstruction);
+  const words = fullResponse.split(" ");
+  for (const word of words) {
+    yield word + " ";
+    await new Promise(r => setTimeout(r, 15));
   }
 }
 
 // ============================================================
-// 🎨 IMAGE GENERATION
+// 🎨 IMAGE GENERATION - Pollinations AI (Free, no key needed)
 // ============================================================
 export async function generateImage(
   prompt: string,
   aspectRatio: string = "1:1"
 ): Promise<string> {
-  try {
-    const key = getKey();
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instances: [{ prompt }],
-          parameters: { sampleCount: 1, aspectRatio },
-        }),
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-      if (b64) return `data:image/png;base64,${b64}`;
-    }
-  } catch (_) {}
-
-  // Free fallback - Pollinations AI
   const w = aspectRatio === "16:9" ? 1280 : aspectRatio === "9:16" ? 576 : 1024;
   const h = aspectRatio === "16:9" ? 720 : aspectRatio === "9:16" ? 1024 : 1024;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&enhance=true`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&enhance=true&seed=${Date.now()}`;
 }
 
 // ============================================================
