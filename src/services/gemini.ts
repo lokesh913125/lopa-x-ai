@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/genai";
 
 // ============================================================
 // 🔑 API KEY ROTATION SYSTEM (8 keys)
