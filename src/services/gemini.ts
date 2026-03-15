@@ -265,3 +265,126 @@ export async function* generateProxyResponseStream(
 ): AsyncGenerator<string> {
   yield* generateChatResponseStream(messages);
 }
+// ============================================================
+// 🔍 IMAGE ANALYSIS - Multi Provider Fallback
+// ============================================================
+export async function analyzeImageWithAI(
+  base64: string,
+  mimeType: string,
+  prompt: string
+): Promise<string> {
+
+  // 1️⃣ Gemini Vision (best for images)
+  try {
+    const key = GEMINI_KEY;
+    if (!key) throw new Error("No Gemini key");
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mimeType, data: base64 } },
+              { text: prompt },
+            ],
+          }],
+        }),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) { console.log("✅ Gemini Vision"); return text; }
+    }
+  } catch (e) { console.warn("⚠️ Gemini Vision failed", e); }
+
+  // 2️⃣ OpenRouter Vision (llama vision free)
+  try {
+    if (!OPENROUTER_KEY) throw new Error("No OpenRouter key");
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENROUTER_KEY}`,
+        "HTTP-Referer": "https://lopa-x-ai.vercel.app",
+        "X-Title": "Lopa X AI",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            { type: "text", text: prompt },
+          ],
+        }],
+        max_tokens: 1024,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text) { console.log("✅ OpenRouter Vision"); return text; }
+    }
+  } catch (e) { console.warn("⚠️ OpenRouter Vision failed", e); }
+
+  // 3️⃣ Together Vision (free tier)
+  try {
+    if (!TOGETHER_KEY) throw new Error("No Together key");
+    const res = await fetch("https://api.together.xyz/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${TOGETHER_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            { type: "text", text: prompt },
+          ],
+        }],
+        max_tokens: 1024,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text) { console.log("✅ Together Vision"); return text; }
+    }
+  } catch (e) { console.warn("⚠️ Together Vision failed", e); }
+
+  // 4️⃣ SambaNova Vision
+  try {
+    if (!SAMBANOVA_KEY) throw new Error("No SambaNova key");
+    const res = await fetch("https://api.sambanova.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SAMBANOVA_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "Llama-3.2-11B-Vision-Instruct",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            { type: "text", text: prompt },
+          ],
+        }],
+        max_tokens: 1024,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+      if (text) { console.log("✅ SambaNova Vision"); return text; }
+    }
+  } catch (e) { console.warn("⚠️ SambaNova Vision failed", e); }
+
+  throw new Error("❌ Sab providers fail ho gaye! Thodi der baad try karo.");
+}
