@@ -1,8 +1,7 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // ============================================================
-// 🔑 API KEY ROTATION SYSTEM (8 keys)
-// Vercel: Settings → Environment Variables mein add karo
+// 🔑 API KEY ROTATION SYSTEM
 // ============================================================
 const API_KEYS = [
   import.meta.env.VITE_GEMINI_API_KEY_1,
@@ -19,9 +18,7 @@ let keyIndex = 0;
 
 function getKey(): string {
   if (API_KEYS.length === 0) {
-    throw new Error(
-      "❌ Koi API key nahi mili! Vercel > Settings > Environment Variables mein VITE_GEMINI_API_KEY_1 add karo."
-    );
+    throw new Error("❌ VITE_GEMINI_API_KEY_1 Vercel env mein add karo!");
   }
   const key = API_KEYS[keyIndex % API_KEYS.length];
   keyIndex = (keyIndex + 1) % API_KEYS.length;
@@ -29,17 +26,8 @@ function getKey(): string {
 }
 
 function getClient() {
-  return new GoogleGenerativeAI(getKey());
+  return new GoogleGenAI({ apiKey: getKey() });
 }
-
-// ============================================================
-// ✅ CORRECT MODEL NAMES (free tier pe kaam karte hain)
-// ============================================================
-export const MODELS = {
-  FLASH:  "gemini-1.5-flash",      // Fast, free, default
-  PRO:    "gemini-1.5-pro",        // Better quality
-  FLASH2: "gemini-2.0-flash-exp",  // Latest experimental
-};
 
 // ============================================================
 // 💬 CHAT - Normal Response
@@ -47,23 +35,19 @@ export const MODELS = {
 export async function generateChatResponse(
   messages: { role: string; content: string }[],
   systemInstruction?: string,
-  modelName: string = MODELS.FLASH
+  modelName: string = "gemini-1.5-flash"
 ): Promise<string> {
-  const client = getClient();
-  const model = client.getGenerativeModel({
-    model: modelName,
-    ...(systemInstruction && { systemInstruction }),
-  });
-
-  const history = messages.slice(0, -1).map((m) => ({
+  const ai = getClient();
+  const contents = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.content }],
   }));
-
-  const lastMessage = messages[messages.length - 1]?.content || "";
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessage(lastMessage);
-  return result.response.text();
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents,
+    config: systemInstruction ? { systemInstruction } : undefined,
+  });
+  return response.text ?? "";
 }
 
 // ============================================================
@@ -72,32 +56,25 @@ export async function generateChatResponse(
 export async function* generateChatResponseStream(
   messages: { role: string; content: string }[],
   systemInstruction?: string,
-  modelName: string = MODELS.FLASH
+  modelName: string = "gemini-1.5-flash"
 ): AsyncGenerator<string> {
-  const client = getClient();
-  const model = client.getGenerativeModel({
-    model: modelName,
-    ...(systemInstruction && { systemInstruction }),
-  });
-
-  const history = messages.slice(0, -1).map((m) => ({
+  const ai = getClient();
+  const contents = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.content }],
   }));
-
-  const lastMessage = messages[messages.length - 1]?.content || "";
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessageStream(lastMessage);
-
-  for await (const chunk of result.stream) {
-    const text = chunk.text();
-    if (text) yield text;
+  const stream = await ai.models.generateContentStream({
+    model: modelName,
+    contents,
+    config: systemInstruction ? { systemInstruction } : undefined,
+  });
+  for await (const chunk of stream) {
+    if (chunk.text) yield chunk.text;
   }
 }
 
 // ============================================================
 // 🎨 IMAGE GENERATION
-// Imagen 3 try karta hai → fail hone pe Pollinations AI (free, no key needed)
 // ============================================================
 export async function generateImage(
   prompt: string,
@@ -121,13 +98,11 @@ export async function generateImage(
       const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
       if (b64) return `data:image/png;base64,${b64}`;
     }
-  } catch (_) {
-    // Fallback use karenge
-  }
+  } catch (_) {}
 
-  // ✅ Free fallback - Pollinations AI
+  // Free fallback - Pollinations AI
   const w = aspectRatio === "16:9" ? 1280 : aspectRatio === "9:16" ? 576 : 1024;
-  const h = aspectRatio === "16:9" ? 720  : aspectRatio === "9:16" ? 1024 : 1024;
+  const h = aspectRatio === "16:9" ? 720 : aspectRatio === "9:16" ? 1024 : 1024;
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true&enhance=true`;
 }
 
@@ -135,14 +110,10 @@ export async function generateImage(
 // 🎮 GAME FORGE
 // ============================================================
 const GAME_PROMPTS: Record<string, string> = {
-  adventure:
-    "You are an immersive text adventure game master in a dark fantasy world. Give vivid descriptions and exactly 3 numbered choices each turn. Max 180 words.",
-  mystery:
-    "You are a murder mystery game host. Reveal clues slowly, introduce suspects, let the player investigate. Max 180 words.",
-  trivia:
-    "You are an energetic trivia host. Ask one question at a time from varied categories. Track score. Max 150 words.",
-  roleplay:
-    "You are a creative roleplay game master. Build an immersive story reacting to every choice. Max 200 words.",
+  adventure: "You are an immersive text adventure game master in a dark fantasy world. Give vivid descriptions and exactly 3 numbered choices each turn. Max 180 words.",
+  mystery: "You are a murder mystery game host. Reveal clues slowly, introduce suspects, let the player investigate. Max 180 words.",
+  trivia: "You are an energetic trivia host. Ask one question at a time from varied categories. Track score. Max 150 words.",
+  roleplay: "You are a creative roleplay game master. Build an immersive story reacting to every choice. Max 200 words.",
 };
 
 export async function generateGameResponse(
@@ -164,12 +135,12 @@ export type ToolType = "summarize" | "translate" | "code" | "grammar" | "seo" | 
 const TOOL_PROMPTS: Record<ToolType, string> = {
   summarize: "Summarize the following text in clear bullet points. Be concise.",
   translate: "Translate to Hindi. Also show English translation below.",
-  code:      "Write clean, well-commented code for the task. Briefly explain it.",
-  grammar:   "Fix all grammar/spelling mistakes. Show corrected version and list changes.",
-  seo:       "Generate SEO title (60 chars), meta description (155 chars), and 10 keywords.",
-  story:     "Write an engaging short story (300-400 words) based on the prompt.",
-  email:     "Write a professional email with subject line based on the context.",
-  tweet:     "Write 3 tweet variations (under 280 chars each) with relevant hashtags.",
+  code: "Write clean, well-commented code for the task. Briefly explain it.",
+  grammar: "Fix all grammar/spelling mistakes. Show corrected version and list changes.",
+  seo: "Generate SEO title (60 chars), meta description (155 chars), and 10 keywords.",
+  story: "Write an engaging short story (300-400 words) based on the prompt.",
+  email: "Write a professional email with subject line based on the context.",
+  tweet: "Write 3 tweet variations (under 280 chars each) with relevant hashtags.",
 };
 
 export async function runAITool(toolType: ToolType, userInput: string): Promise<string> {
@@ -193,12 +164,10 @@ export async function generateAdultChatResponse(
 
 // ============================================================
 // 🔄 PROXY REPLACEMENT
-// aiProxy.ts ki /api/chat/proxy calls — direct Gemini se replace
-// Purana code import karta tha aiProxy.ts → ab ye functions use karo
 // ============================================================
 export async function generateProxyResponse(
   messages: { role: string; content: string }[],
-  _provider: string,  // ignored
+  _provider: string,
   _model?: string
 ): Promise<string> {
   return generateChatResponse(messages);
